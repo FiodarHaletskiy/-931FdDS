@@ -1,0 +1,49 @@
+version: "3.9"
+
+
+services:
+  postgres:
+        image: postgres:15
+        container_name: orderDB
+        restart: always
+        environment:
+          POSTGRES_USER: orderDB
+          POSTGRES_PASSWORD: orderDB
+          POSTGRES_DB: orderDB
+        ports:
+          - "5430:5432"
+        networks: [foodapp]
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: orderService-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports: [ "2181:2181" ]
+    networks: [ foodapp ]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: orderService-kafka
+    depends_on: [ zookeeper ]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # --- listeners ---
+      # ВАЖНО: брокер должен реально СЛУШАТЬ тот же порт, который рекламирует.
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9192,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9192,PLAINTEXT_HOST://localhost:9192
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports: [ "9192:9192" ]   # наружу нужен только 9192
+    networks: [ foodapp ]
+
+volumes:
+  postgres_data:
+
+networks:
+  foodapp:
+    driver: bridge
